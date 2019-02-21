@@ -1170,6 +1170,7 @@ cdef class _IO(object):
     def config_cursor_blink(self, cimgui.bool value):
         self._ptr.ConfigInputTextCursorBlink = value
     
+    @property
     def config_windows_resize_from_edges(self):
         return self._ptr.ConfigWindowsResizeFromEdges
 
