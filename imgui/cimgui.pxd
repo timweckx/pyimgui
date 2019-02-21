@@ -10,7 +10,6 @@ from libcpp cimport bool
 
 from enums cimport ImGuiKey_, ImGuiCol_
 
-
 cdef extern from "imgui.h":
     # ====
     # Forward declarations
@@ -35,6 +34,8 @@ cdef extern from "imgui.h":
     ctypedef struct ImGuiListClipper
     ctypedef struct ImGuiPayload
     ctypedef struct ImGuiContext
+    ctypedef struct ImGuiWindowClass
+    ctypedef struct ImGuiViewport
 
     # ====
     # Various int typedefs and enumerations
@@ -65,8 +66,11 @@ cdef extern from "imgui.h":
     ctypedef int ImGuiSelectableFlags
     ctypedef int ImGuiTreeNodeFlags
     ctypedef int ImGuiWindowFlags
-    ctypedef int (*ImGuiInputTextCallback)(ImGuiInputTextCallbackData *data);
-    ctypedef void (*ImGuiSizeCallback)(ImGuiSizeCallbackData* data);
+    ctypedef int (*ImGuiInputTextCallback)(ImGuiInputTextCallbackData *data)
+    ctypedef void (*ImGuiSizeCallback)(ImGuiSizeCallbackData* data)
+    ctypedef int ImGuiDockNodeFlags;
+    ctypedef int ImGuiViewportFlags;                   
+
 
     ctypedef struct ImVec2:
         float x
@@ -103,12 +107,16 @@ cdef extern from "imgui.h":
         float         FontGlobalScale  # ✓
         bool          FontAllowUserScaling  # ✓
         ImVec2        DisplayFramebufferScale  # ✓
-        ImVec2        DisplayVisibleMin  # ✓
-        ImVec2        DisplayVisibleMax  # ✓
         bool          ConfigMacOSXBehaviors  # ✓
         bool          ConfigInputTextCursorBlink  # ✓
-        bool          ConfigResizeWindowsFromEdges  # ✓
-
+        bool          ConfigWindowsResizeFromEdges  # ✓
+        
+        # Docking options (when ImGuiConfigFlags_DockingEnable is set)
+        bool          ConfigDockingNoSplit # Simplified docking mode: disable window splitting, so docking is limited to merging multiple windows together into tab-bars.
+        bool          ConfigDockingWithShift # enable docking with holding Shift key (reduce visual noise, allows dropping in wider space)
+        bool          ConfigDockingTabBarOnSingleWindows # [BETA] Make every single floating window display within a docking node.
+        bool          ConfigDockingTransparentPayload # [BETA] Make window or viewport transparent when docking and only display docking boxes on the target viewport. Useful if rendering of multiple viewport cannot be synced. Best used with ConfigViewportsNoAutoMerge.
+    
         # ====
         # source-note: User Functions
         # note: callbacks may wrap arbitrary Python code so we need to
@@ -243,8 +251,6 @@ cdef extern from "imgui.h":
         void ChannelsMerge() except + # ✓
         void ChannelsSetCurrent(int idx) except + # ✓
 
-
-
     ctypedef struct ImDrawData:  # ✓
         bool            Valid  # ✓
         ImDrawList**    CmdLists  # ✓
@@ -328,8 +334,28 @@ cdef extern from "imgui.h":
         ImVec4*     Colors
 
     ctypedef struct ImGuiContext:
+        pass 
+    
+    ctypedef struct ImGuiWindowClass:
         pass
+    
+    ctypedef struct ImGuiViewport:
+        ImGuiID             ID                     # Unique identifier for the viewport
+        ImGuiViewportFlags  Flags                  # See ImGuiViewportFlags_
+        ImVec2              Pos                    # Position of viewport both in imgui space and in OS desktop/native space
+        ImVec2              Size                   # Size of viewport in pixel
+        float               DpiScale               # 1.0f = 96 DPI = No extra scale
+        ImDrawData*         DrawData               # The ImDrawData corresponding to this viewport. Valid after Render() and until the next call to NewFrame().
+        ImGuiID             ParentViewportId       # (Advanced) 0: no parent. Instruct the platform back-end to setup a parent/child relationship between platform windows.
+    
+        void*               RendererUserData       # void* to hold custom data structure for the renderer (e.g. swap chain, frame-buffers etc.)
+        void*               PlatformUserData       # void* to hold custom data structure for the OS / platform (e.g. windowing info, render context)
+        void*               PlatformHandle         # void* for FindViewportByPlatformHandle(). (e.g. suggested to use natural platform handle such as HWND, GlfwWindow*, SDL_Window*)
+        bool                PlatformRequestClose   # Platform window requested closure (e.g. window was moved by the OS / host window manager, e.g. pressing ALT-F4)
+        bool                PlatformRequestMove    # Platform window requested move (e.g. window was moved by the OS / host window manager, authoritative position will be OS window position)
+        bool                PlatformRequestResize  # Platform window requested resize (e.g. window was resized by the OS / host window manager, authoritative size will be OS window size)
 
+        
 cdef extern from "imgui.h" namespace "ImGui":
     # ====
     # Context creation and access
@@ -433,6 +459,7 @@ cdef extern from "imgui.h" namespace "ImGui":
     ) except +
     void SetNextWindowFocus() except +  # ✓
     void SetNextWindowBgAlpha(float alpha) except +  # ✓
+    void SetNextWindowViewport(ImGuiID viewport_id); 
     void SetWindowPos(  # ✗
             const ImVec2& pos,
             # note: optional
@@ -1218,4 +1245,31 @@ cdef extern from "imgui.h" namespace "ImGui":
             # note: optional
             size_t* out_ini_size
     ) except +
-
+            
+    ImGuiViewport* GetWindowViewport() except +
+            
+    # Docking
+    # [BETA API] Enable with io.ConfigFlags |= ImGuiConfigFlags_DockingEnable.
+    # Note: you DO NOT need to call DockSpace() to use most Docking facilities! 
+    # To dock windows: hold SHIFT anywhere while moving windows (if io.ConfigDockingWithShift == true) or drag windows from their title bar (if io.ConfigDockingWithShift = false)
+    # Use DockSpace() to create an explicit dock node _within_ an existing window. See Docking demo for details.
+    void DockSpace(
+            ImGuiID id, 
+            const ImVec2& size, 
+            ImGuiDockNodeFlags flags, 
+            const ImGuiWindowClass* window_class
+    ) except +
+    ImGuiID DockSpaceOverViewport(
+            ImGuiViewport* viewport, 
+            ImGuiDockNodeFlags dockspace_flags, 
+            const ImGuiWindowClass* window_class
+    ) except +
+    void SetNextWindowDockID( # set next window dock id (FIXME-DOCK)
+            ImGuiID dock_id, 
+            ImGuiCond cond
+    ) except +           
+    void SetNextWindowClass( # set next window class / user type (docking filters by same user_type)
+            const ImGuiWindowClass* window_class
+    ) except +       
+    ImGuiID GetWindowDockID() except +
+    bool IsWindowDocked() except +
