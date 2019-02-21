@@ -1,6 +1,6 @@
 # distutils: language = c++
 # distutils: sources = imgui-cpp/imgui.cpp imgui-cpp/imgui_draw.cpp imgui-cpp/imgui_demo.cpp imgui-cpp/imgui_widgets.cpp config-cpp/py_imconfig.cpp
-# distutils: include_dirs = imgui-cpp
+# distutils: include_dirs = imgui-cpp imgui-cpp/addons
 # cython: embedsignature=True
 """
 
@@ -24,12 +24,14 @@ from libc.stdint cimport uintptr_t
 from libc.string cimport strdup
 from libc.string cimport strncpy
 from libc.float  cimport FLT_MAX
+from libc.time cimport tm
 from libcpp cimport bool
 
 cimport cimgui
 cimport enums
 
 from cpython.version cimport PY_MAJOR_VERSION
+from cpython.datetime cimport datetime
 
 # todo: find a way to cimport this directly from imgui.h
 DEF TARGET_IMGUI_VERSION = (1, 49)
@@ -41,6 +43,19 @@ ALWAYS = enums.ImGuiCond_Always
 ONCE = enums.ImGuiCond_Once
 FIRST_USE_EVER = enums.ImGuiCond_FirstUseEver
 APPEARING = enums.ImGuiCond_Appearing
+
+# === Config enum redefines
+CONFIG_NAV_ENABLE_KEYBOARD = enums.ImGuiConfigFlags_NavEnableKeyboard
+CONFIG_NAV_ENABLE_GAMEPAD = enums.ImGuiConfigFlags_NavEnableGamepad
+CONFIG_NAV_ENABLE_SET_MOUSE_POS = enums.ImGuiConfigFlags_NavEnableSetMousePos
+CONFIG_NAV_NO_CAPT_KEYBOARD = enums.ImGuiConfigFlags_NavNoCaptureKeyboard
+CONFIG_NO_MOUSE = enums.ImGuiConfigFlags_NoMouse
+CONFIG_NO_MOUSE_CURSOR_CHANGE = enums.ImGuiConfigFlags_NoMouseCursorChange
+# User storage (to allow your back-end/engine to communicate to code that may be sh
+CONFIG_IS_SRGB = enums.ImGuiConfigFlags_IsSRGB
+CONFIG_IS_TOUCH = enums.ImGuiConfigFlags_IsTouchScreen
+# Docking (beta)
+CONFIG_DOCKING_ENABLE = enums.ImGuiConfigFlags_DockingEnable
 
 # ==== Style var enum redefines ====
 STYLE_ALPHA = enums.ImGuiStyleVar_Alpha # float
@@ -109,6 +124,7 @@ WINDOW_ALWAYS_USE_WINDOW_PADDING = enums.ImGuiWindowFlags_AlwaysUseWindowPadding
 WINDOW_NO_NAV_INPUTS = enums.ImGuiWindowFlags_NoNavInputs
 WINDOW_NO_NAV_FOCUS = enums.ImGuiWindowFlags_NoNavFocus
 WINDOW_NO_NAV = enums.ImGuiWindowFlags_NoNav
+WINDOW_NO_DOCKING = enums.ImGuiWindowFlags_NoDocking
 
 # ==== TreeNode flags enum redefines ====
 TREE_NODE_SELECTED = enums.ImGuiTreeNodeFlags_Selected
@@ -252,6 +268,16 @@ INPUT_TEXT_READ_ONLY = enums.ImGuiInputTextFlags_ReadOnly
 INPUT_TEXT_PASSWORD = enums.ImGuiInputTextFlags_Password
 INPUT_TEXT_NO_UNDO_REDO = enums.ImGuiInputTextFlags_NoUndoRedo
 
+DOCK_NONE = enums.ImGuiDockNodeFlags_None                         
+DOCK_KEEP_ALIVE = enums.ImGuiDockNodeFlags_KeepAliveOnly 
+DOCK_NO_SPLIT = enums.ImGuiDockNodeFlags_NoSplit 
+#DOCK_NO_CENTRAL_NODE = enums.ImGuiDockNodeFlags_NoCentralNode
+DOCK_NO_DOCKING_CENTRAL_NODE = enums.ImGuiDockNodeFlags_NoDockingInCentralNode
+#DOCK_NO_LAYOUT_CHANGES = enums.ImGuiDockNodeFlags_NoLayoutChanges
+DOCK_NO_RESIZE = enums.ImGuiDockNodeFlags_NoResize
+DOCK_PASS_THRU = enums.ImGuiDockNodeFlags_PassthruDockspace 
+DOCK_AUTO_HIDE_TAB_BAR = enums.ImGuiDockNodeFlags_AutoHideTabBar 
+
 
 Vec2 = namedtuple("Vec2", ['x', 'y'])
 Vec4 = namedtuple("Vec4", ['x', 'y', 'z', 'w'])
@@ -319,6 +345,38 @@ cdef class _ImGuiContext(object):
         instance = _ImGuiContext()
         instance._ptr = ptr
         return instance
+    
+    
+cdef class _ImGuiWindowClass(object):
+    cdef cimgui.ImGuiWindowClass* _ptr
+
+    @staticmethod
+    cdef from_ptr(cimgui.ImGuiWindowClass* ptr):
+        instance = _ImGuiWindowClass()
+        instance._ptr = ptr
+        return instance
+
+
+cdef class _ImGuiViewport(object):
+    cdef cimgui.ImGuiViewport* _ptr
+
+    @staticmethod
+    cdef from_ptr(cimgui.ImGuiViewport* ptr):
+        instance = _ImGuiViewport()
+        instance._ptr = ptr
+        return instance
+    
+    @property
+    def id(self):
+        return self._ptr.ID
+
+    @property
+    def position(self):
+        return _cast_ImVec2_tuple(self._ptr.Pos)
+
+    @property
+    def size(self):
+        return _cast_ImVec2_tuple(self._ptr.Size)   
 
 
 cdef class _DrawCmd(object):
@@ -974,7 +1032,15 @@ cdef class _IO(object):
 
     def __init__(self):
         self._ptr = &cimgui.GetIO()
-        self._fonts = _FontAtlas.from_ptr(self._ptr.Fonts)
+        self._fonts = _FontAtlas.from_ptr(self._ptr.Fonts)    
+        
+    @property
+    def config_flags(self):
+        return self._ptr.ConfigFlags
+    
+    @config_flags.setter
+    def config_flags(self, value):
+        self._ptr.ConfigFlags = value
 
     # ... maping of input properties ...
     @property
@@ -1089,22 +1155,6 @@ cdef class _IO(object):
         self._ptr.DisplayFramebufferScale = _cast_tuple_ImVec2(value)
 
     @property
-    def display_visible_min(self):
-        return _cast_ImVec2_tuple(self._ptr.DisplayVisibleMin)
-
-    @display_visible_min.setter
-    def display_visible_min(self,  value):
-        self._ptr.DisplayVisibleMin = _cast_tuple_ImVec2(value)
-
-    @property
-    def display_visible_max(self):
-        return _cast_ImVec2_tuple(self._ptr.DisplayVisibleMax)
-
-    @display_visible_max.setter
-    def display_visible_max(self,  value):
-        self._ptr.DisplayVisibleMax = _cast_tuple_ImVec2(value)
-
-    @property
     def config_mac_osx_behaviors(self):
         return self._ptr.ConfigMacOSXBehaviors
 
@@ -1119,14 +1169,45 @@ cdef class _IO(object):
     @config_cursor_blink.setter
     def config_cursor_blink(self, cimgui.bool value):
         self._ptr.ConfigInputTextCursorBlink = value
+    
+    def config_windows_resize_from_edges(self):
+        return self._ptr.ConfigWindowsResizeFromEdges
 
+    @config_windows_resize_from_edges.setter
+    def config_windows_resize_from_edges(self, cimgui.bool value):
+        self._ptr.ConfigWindowsResizeFromEdges = value      
+    
     @property
-    def config_resize_windows_from_edges(self):
-        return self._ptr.ConfigResizeWindowsFromEdges
+    def config_docking_no_split(self):
+        return self._ptr.ConfigDockingNoSplit
+    
+    @config_docking_no_split.setter
+    def config_docking_no_split(self, cimgui.bool value):
+        self._ptr.ConfigDockingNoSplit = value
+                
+    @property
+    def config_docking_with_split(self):
+        return self._ptr.ConfigDockingWithShift
 
-    @config_resize_windows_from_edges.setter
-    def config_resize_windows_from_edges(self, cimgui.bool value):
-        self._ptr.ConfigResizeWindowsFromEdges = value
+    @config_docking_with_split.setter
+    def config_docking_with_split(self, cimgui.bool value):
+        self._ptr.ConfigDockingWithShift = value
+                
+    @property
+    def config_docking_tab_bar_on_single_windows(self):
+        return self._ptr.ConfigDockingTabBarOnSingleWindows
+
+    @config_docking_tab_bar_on_single_windows.setter
+    def config_docking_tab_bar_on_single_windows(self, cimgui.bool value):
+        self._ptr.ConfigDockingTabBarOnSingleWindows = value
+                
+    @property
+    def config_docking_transparent_payload(self):
+        return self._ptr.ConfigDockingTransparentPayload
+
+    @config_docking_transparent_payload.setter
+    def config_docking_transparent_payload(self, cimgui.bool value):
+        self._ptr.ConfigDockingTransparentPayload = value
 
     @property
     def mouse_pos(self):
@@ -2081,7 +2162,35 @@ def tree_pop():
     """
     cimgui.TreePop()
 
+def set_next_tree_node_open(
+    cimgui.bool is_open, cimgui.ImGuiCond condition=ALWAYS
+):
+    """Set next tree node open state.
 
+    .. visual-example::
+        :auto_layout:
+        :height: 60
+        :width: 400
+
+        imgui.set_next_tree_node_open(True)
+        if imgui.tree_node("I am expanded!"):
+            imgui.text("Lorem Ipsum")
+            imgui.tree_pop()
+
+    Args:
+        collapsed (bool): set to True if tree_node has to be opened.
+        condition (:ref:`condition flag <condition-options>`): defines on
+            which condition value should be set. Defaults to
+            :any:`imgui.ALWAYS`.
+
+    .. wraps::
+         void SetNextTreeNodeOpen(
+             bool is_open, ImGuiCond cond = 0
+         )
+
+    """
+    cimgui.SetNextTreeNodeOpen(is_open, condition)
+    
 def collapsing_header(
     str text,
     visible=None,
@@ -3041,6 +3150,30 @@ def small_button(str label):
     """
     return cimgui.SmallButton(_bytes(label))
 
+def arrow_button(str str_id, cimgui.ImGuiDir direction=DIRECTION_NONE):
+    """Display square button with an arrow shape.
+
+    .. visual-example::
+        :auto_layout:
+        :height: 100
+
+        imgui.begin("Example: arrow button")
+        imgui.arrow_button("ArrowLeft", imgui.DIRECTION_LEFT)
+        imgui.arrow_button("ArrowRight", imgui.DIRECTION_RIGHT)
+        imgui.arrow_button("ArrowUp", imgui.DIRECTION_UP)
+        imgui.arrow_button("ArrowDown", imgui.DIRECTION_DOWN)
+        imgui.end()
+
+    Args:
+        str_id (str): button id
+        direction: ImGuiDir(imgui.DIRECTION_NONE, imgui.DIRECTION_LEFT, imgui.DIRECTION_RIGHT, imgui.DIRECTION_UP, imgui.DIRECTION_DOWN)
+    Returns:
+        bool: True if clicked.
+
+    .. wraps::
+        bool ArrowButton(const char* str_id, ImGuiDir direction)
+    """
+    return cimgui.ArrowButton(_bytes(str_id), direction)
 
 def invisible_button(str identifier, width, height):
     """Create invisible button.
@@ -6466,6 +6599,56 @@ def set_current_context(_ImGuiContext ctx):
                 ImGuiContext *ctx);
     """
     cimgui.SetCurrentContext(ctx._ptr)
+    
+def get_id(str identifier):
+    return cimgui.GetID(_bytes(identifier))
+    
+def get_window_viewport():
+    cdef cimgui.ImGuiViewport* _ptr
+    _ptr = cimgui.GetWindowViewport()
+    return _ImGuiViewport.from_ptr(_ptr)
+
+def set_next_window_viewport(_ImGuiViewport viewport):
+    cimgui.SetNextWindowViewport(viewport.id)
+    
+def dockspace(str identifier, float width=0, float height=0, 
+               cimgui.ImGuiDockNodeFlags flags=DOCK_NONE, 
+               _ImGuiWindowClass window=None):
+    cdef cimgui.ImGuiWindowClass* ptr = NULL
+    if window:
+        ptr = window._ptr
+        
+    id = cimgui.GetID(_bytes(identifier))
+    cimgui.DockSpace(id, _cast_args_ImVec2(width, height), flags, ptr)
+    
+def dockspace_over_viewport(
+        _ImGuiViewport viewport=None, 
+        cimgui.ImGuiDockNodeFlags flags=DOCK_NONE,
+        _ImGuiWindowClass window=None):
+    cdef cimgui.ImGuiViewport* vp_ptr = NULL
+    if viewport:
+        vp_ptr = viewport._ptr
+        
+    cdef cimgui.ImGuiWindowClass* w_ptr = NULL    
+    if window:
+        w_ptr = window._ptr
+        
+    return cimgui.DockSpaceOverViewport(vp_ptr, flags, w_ptr)
+
+def set_next_window_dock_id(int dock_id, cimgui.ImGuiCond cond=ALWAYS):
+    cimgui.SetNextWindowDockID(dock_id, cond)
+    
+def set_next_window_class(_ImGuiWindowClass window=None):
+    cdef cimgui.ImGuiWindowClass* ptr = NULL
+    if window:
+        ptr = window._ptr
+    cimgui.SetNextWindowClass(ptr)
+    
+def get_window_dock_id():
+    return cimgui.GetWindowDockID()
+
+def is_window_docked():
+    return cimgui.IsWindowDocked()
 
 
 # === Python/C++ cross API for error handling ===
