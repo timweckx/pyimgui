@@ -54,9 +54,6 @@ cdef extern from "imgui.h":
         # User storage (to allow your back-end/engine to communicate to code that may be sh
         ImGuiConfigFlags_IsSRGB
         ImGuiConfigFlags_IsTouchScreen
-        
-        # Docking (beta)
-        ImGuiConfigFlags_DockingEnable
 
 
     ctypedef enum ImGuiBackendFlags_:
@@ -179,7 +176,6 @@ cdef extern from "imgui.h":
         ImGuiWindowFlags_NoNavInputs                # No gamepad/keyboard navigation within the window
         ImGuiWindowFlags_NoNavFocus                 # No focusing toward this window with gamepad/keyboard navigation (e.g. skipped by CTRL+TAB)
         ImGuiWindowFlags_NoNav = ImGuiWindowFlags_NoNavInputs | ImGuiWindowFlags_NoNavFocus 
-        ImGuiWindowFlags_NoDocking
 
     ctypedef enum ImGuiColorEditFlags_:
         ImGuiColorEditFlags_NoAlpha
@@ -309,24 +305,3 @@ cdef extern from "imgui.h":
         ImGuiInputTextFlags_Password            # Password mode, display all characters as '*'
         ImGuiInputTextFlags_NoUndoRedo          # Disable undo/redo. Note that input text owns the text data while active, if you want to provide your own undo/redo stack you need e.g. to call ClearActiveID().
         ImGuiInputTextFlags_CharsScientific     # Allow 0123456789.+-*/eE (Scientific notation input)
-    
-    ctypedef enum ImGuiDockNodeFlags_:
-        ImGuiDockNodeFlags_None                         
-        ImGuiDockNodeFlags_KeepAliveOnly                # Don't display the dockspace node but keep it alive. Windows docked into this dockspace node won't be undocked.
-        ImGuiDockNodeFlags_NoSplit                      # Disable splitting the node into smaller nodes. Useful e.g. when embedding dockspaces into a main root one (the root one may have splitting disabled to reduce confusion)
-        #ImGuiDockNodeFlags_NoCentralNode               # Disable Central Node (the node which can stay empty)
-        ImGuiDockNodeFlags_NoDockingInCentralNode       # Disable docking inside the Central Node, which will be always kept empty.
-        #ImGuiDockNodeFlags_NoLayoutChanges             # Disable adding/removing nodes interactively. Useful with programatically setup dockspaces.
-        ImGuiDockNodeFlags_NoResize                     # Disable resizing child nodes using the splitter/separators. Useful with programatically setup dockspaces. 
-        ImGuiDockNodeFlags_PassthruDockspace            # Enable passthru dockspace: 1) DockSpace() will render a ImGuiCol_WindowBg background covering everything excepted the Central Node when empty. Meaning the host window should probably use SetNextWindowBgAlpha(0.0f) prior to Begin() when using this. 2) When Central Node is empty: let inputs pass-through + won't display a DockingEmptyBg background.
-        ImGuiDockNodeFlags_AutoHideTabBar               # Tab bar will automatically hide when there is a single window in the dock node.
-        
-    ctypedef enum ImGuiViewportFlags_:
-        ImGuiViewportFlags_None 
-        ImGuiViewportFlags_NoDecoration
-        ImGuiViewportFlags_NoTaskBarIcon 
-        ImGuiViewportFlags_NoFocusOnAppearing
-        ImGuiViewportFlags_NoFocusOnClick
-        ImGuiViewportFlags_NoInputs   
-        ImGuiViewportFlags_NoRendererClear
-        ImGuiViewportFlags_TopMost
