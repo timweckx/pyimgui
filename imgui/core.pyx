@@ -6674,6 +6674,9 @@ def dockspace(str identifier, float width=0, float height=0,
     
     
 def dockspace_over_viewport(
+        _ImGuiViewport viewport=None, 
+        cimgui.ImGuiDockNodeFlags flags=DOCK_NONE,
+        _ImGuiWindowClass window=None):
     """Similar to DockSpace, but creates the Dockspace node in an existing viewport.
     Args:
         viewport (_ImGuiViewport): Wrapper around ImGuiViewport pointer of an existing viewport
@@ -6688,9 +6691,6 @@ def dockspace_over_viewport(
     .. wraps::
         ImGuiID DockSpaceOverViewport(ImGuiViewport* viewport, ImGuiDockNodeFlags dockspace_flags, const ImGuiWindowClass* window_class)
     """
-        _ImGuiViewport viewport=None, 
-        cimgui.ImGuiDockNodeFlags flags=DOCK_NONE,
-        _ImGuiWindowClass window=None):
     cdef cimgui.ImGuiViewport* vp_ptr = NULL
     if viewport:
         vp_ptr = viewport._ptr
