@@ -345,20 +345,20 @@ cdef extern from "imgui.h":
 
     
     ctypedef struct ImGuiViewport:
-        ImGuiID             ID                     # Unique identifier for the viewport
-        ImGuiViewportFlags  Flags                  # See ImGuiViewportFlags_
-        ImVec2              Pos                    # Position of viewport both in imgui space and in OS desktop/native space
-        ImVec2              Size                   # Size of viewport in pixel
-        float               DpiScale               # 1.0f = 96 DPI = No extra scale
-        ImDrawData*         DrawData               # The ImDrawData corresponding to this viewport. Valid after Render() and until the next call to NewFrame().
-        ImGuiID             ParentViewportId       # (Advanced) 0: no parent. Instruct the platform back-end to setup a parent/child relationship between platform windows.
+        ImGuiID             ID                     # ✓ 
+        ImGuiViewportFlags  Flags                  # ✗ 
+        ImVec2              Pos                    # ✓ 
+        ImVec2              Size                   # ✓ 
+        float               DpiScale               # ✗ 
+        ImDrawData*         DrawData               # ✗ 
+        ImGuiID             ParentViewportId       # ✗ 
     
-        void*               RendererUserData       # void* to hold custom data structure for the renderer (e.g. swap chain, frame-buffers etc.)
-        void*               PlatformUserData       # void* to hold custom data structure for the OS / platform (e.g. windowing info, render context)
-        void*               PlatformHandle         # void* for FindViewportByPlatformHandle(). (e.g. suggested to use natural platform handle such as HWND, GlfwWindow*, SDL_Window*)
-        bool                PlatformRequestClose   # Platform window requested closure (e.g. window was moved by the OS / host window manager, e.g. pressing ALT-F4)
-        bool                PlatformRequestMove    # Platform window requested move (e.g. window was moved by the OS / host window manager, authoritative position will be OS window position)
-        bool                PlatformRequestResize  # Platform window requested resi
+        void*               RendererUserData       # ✗
+        void*               PlatformUserData       # ✗
+        void*               PlatformHandle         # ✗
+        bool                PlatformRequestClose   # ✗
+        bool                PlatformRequestMove    # ✗
+        bool                PlatformRequestResize  # ✗ 
 
 
 cdef extern from "imgui.h" namespace "ImGui":
@@ -463,7 +463,10 @@ cdef extern from "imgui.h" namespace "ImGui":
             ImGuiCond cond
     ) except +
     void SetNextWindowFocus() except +  # ✓
-    void SetNextWindowBgAlpha(float alpha) except +  # ✓
+    void SetNextWindowBgAlpha(float alpha) except +  # ✓        
+    void SetNextWindowClass( # ✓
+            const ImGuiWindowClass* window_class
+    ) except +       
     void SetWindowPos(  # ✗
             const ImVec2& pos,
             # note: optional
@@ -586,7 +589,7 @@ cdef extern from "imgui.h" namespace "ImGui":
     void PushID(const void* ptr_id) except +  # ✗
     void PushID(int int_id) except +  # ✗
     void PopID() except +  # ✗
-    ImGuiID GetID(const char* str_id) except +  # ✗
+    ImGuiID GetID(const char* str_id) except + # ✓
     ImGuiID GetID(const char* str_id_begin, const char* str_id_end) except +  # ✗
     ImGuiID GetID(const void* ptr_id) except +  # ✗
 
@@ -1250,32 +1253,30 @@ cdef extern from "imgui.h" namespace "ImGui":
             size_t* out_ini_size
     ) except +
          
-  
-    void SetNextWindowViewport(ImGuiID viewport_id)
-    ImGuiViewport* GetWindowViewport() except +
+    # Viewports
+    void SetNextWindowViewport( # ✓
+            ImGuiID viewport_id) except +
+    ImGuiViewport* GetWindowViewport() except + # ✓
             
     # Docking
     # [BETA API] Enable with io.ConfigFlags |= ImGuiConfigFlags_DockingEnable.
     # Note: you DO NOT need to call DockSpace() to use most Docking facilities! 
     # To dock windows: hold SHIFT anywhere while moving windows (if io.ConfigDockingWithShift == true) or drag windows from their title bar (if io.ConfigDockingWithShift = false)
     # Use DockSpace() to create an explicit dock node _within_ an existing window. See Docking demo for details.
-    void DockSpace(
+    void DockSpace(   # ✓
             ImGuiID id, 
             const ImVec2& size, 
             ImGuiDockNodeFlags flags, 
             const ImGuiWindowClass* window_class
     ) except +
-    ImGuiID DockSpaceOverViewport(
+    ImGuiID DockSpaceOverViewport( # ✓
             ImGuiViewport* viewport, 
             ImGuiDockNodeFlags dockspace_flags, 
             const ImGuiWindowClass* window_class
     ) except +
-    void SetNextWindowDockID( # set next window dock id (FIXME-DOCK)
+    void SetNextWindowDockID( # ✓
             ImGuiID dock_id, 
             ImGuiCond cond
-    ) except +           
-    void SetNextWindowClass( # set next window class / user type (docking filters by same user_type)
-            const ImGuiWindowClass* window_class
     ) except +       
-    ImGuiID GetWindowDockID() except +
-    bool IsWindowDocked() except +
+    ImGuiID GetWindowDockID() except + # ✓
+    bool IsWindowDocked() except + # ✓

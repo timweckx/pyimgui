@@ -1926,8 +1926,20 @@ def set_next_window_bg_alpha(float alpha):
     .. wraps::
         void SetNextWindowBgAlpha(float)
     """
-    cimgui.SetNextWindowBgAlpha(alpha)
+    cimgui.SetNextWindowBgAlpha(alpha) 
+    
+    
+def set_next_window_class(_ImGuiWindowClass window=None):
+    """set next window class (rare/advanced uses: provide hints to the platform back-end via altered viewport flags and parent/child info)
 
+    .. wraps::
+        void SetNextWindowClass(ptr)
+    """
+    cdef cimgui.ImGuiWindowClass* ptr = NULL
+    if window:
+        ptr = window._ptr
+    cimgui.SetNextWindowClass(ptr)
+    
 
 def get_window_draw_list():
     """Get the draw list associated with the window, to append your own drawing primitives
@@ -6579,7 +6591,6 @@ def destroy_context(_ImGuiContext ctx = None):
         cimgui.DestroyContext(NULL)
 
 
-
 def get_current_context():
     """GetCurrentContext
 
@@ -6601,20 +6612,59 @@ def set_current_context(_ImGuiContext ctx):
     """
     cimgui.SetCurrentContext(ctx._ptr)
     
+    
 def get_id(str identifier):
+    """Calculates unique ID (hash of whole ID stack + given parameter). 
+    e.g. if you want to query into ImGuiStorage yourself
+    
+    Returns:
+        ImGuiID: unique ID (hash of whole ID stack + given parameter).
+    
+    .. wraps::
+        ImGuiID GetID(const char* str)
+    """
     return cimgui.GetID(_bytes(identifier))
     
+
 def get_window_viewport():
+    """Gets viewport currently associated to the current window.
+    
+    Returns:
+        _ImGuiViewport: wrapper around ImGuiViewport to obtain pointer.
+        
+    .. wraps::
+        ImGuiViewport* GetWindowViewport()
+    """
     cdef cimgui.ImGuiViewport* _ptr
     _ptr = cimgui.GetWindowViewport()
     return _ImGuiViewport.from_ptr(_ptr)
 
+
 def set_next_window_viewport(_ImGuiViewport viewport):
+    """Sets viewport to use for the next window that will be created.
+    
+    .. wraps::
+        SetNextWindowViewport(ImGuiID viewport_id)
+    """
     cimgui.SetNextWindowViewport(viewport.id)
+    
     
 def dockspace(str identifier, float width=0, float height=0, 
                cimgui.ImGuiDockNodeFlags flags=DOCK_NONE, 
                _ImGuiWindowClass window=None):
+    """Create an explicit dockspace node within an existing window. Also expose dock node flags and creates a CentralNode by default.
+    The Central Node is always displayed even when empty and shrink/extend according to the requested size of its neighbors.
+
+    Args:
+        identifier(str): Unique name for the dockspace
+        width (float): Width of the dockspace node. Default = 0 and will set the width to the available content width  
+        height (float): Height of the dockspace node. Default = 0 and will set the height to the available content height  
+        flags (ImGuiDockNodeFlags): Configuration flags for creating the docknode
+        window (ImGuiWindowClass): Window class, provide hints to the platform back-end via altered viewport flags and parent/child info
+        
+    .. wraps::
+        SetNextWindowViewport(ImGuiID viewport_id)
+    """
     cdef cimgui.ImGuiWindowClass* ptr = NULL
     if window:
         ptr = window._ptr
@@ -6622,7 +6672,22 @@ def dockspace(str identifier, float width=0, float height=0,
     id = cimgui.GetID(_bytes(identifier))
     cimgui.DockSpace(id, _cast_args_ImVec2(width, height), flags, ptr)
     
+    
 def dockspace_over_viewport(
+    """Similar to DockSpace, but creates the Dockspace node in an existing viewport.
+    Args:
+        viewport (_ImGuiViewport): Wrapper around ImGuiViewport pointer of an existing viewport
+        flags (ImGuiDockNodeFlags): Configuration flags for creating the docknode
+        window (ImGuiWindowClass): Window class, provide hints to the platform back-end via altered viewport flags and parent/child info
+        
+    Returns
+        ImGuiID: Unique ID for the dockspace (based on the viewport ID)
+       
+    **Note:** The limitation with this call is that your window won't have a menu bar. 
+    
+    .. wraps::
+        ImGuiID DockSpaceOverViewport(ImGuiViewport* viewport, ImGuiDockNodeFlags dockspace_flags, const ImGuiWindowClass* window_class)
+    """
         _ImGuiViewport viewport=None, 
         cimgui.ImGuiDockNodeFlags flags=DOCK_NONE,
         _ImGuiWindowClass window=None):
@@ -6636,19 +6701,36 @@ def dockspace_over_viewport(
         
     return cimgui.DockSpaceOverViewport(vp_ptr, flags, w_ptr)
 
+
 def set_next_window_dock_id(int dock_id, cimgui.ImGuiCond cond=ALWAYS):
+    """ Set next window id
+    
+    ..wraps:
+        SetNextWindowDockID(ImGuiID dock_id, ImGuiCond cond)
+    """
     cimgui.SetNextWindowDockID(dock_id, cond)
     
-def set_next_window_class(_ImGuiWindowClass window=None):
-    cdef cimgui.ImGuiWindowClass* ptr = NULL
-    if window:
-        ptr = window._ptr
-    cimgui.SetNextWindowClass(ptr)
     
 def get_window_dock_id():
+    """ Get dock id of the current window
+    
+    Returns:
+        ImGuiID: Unique identifier of the dock
+        
+    ..wraps:
+        GetWindowDockID()
+    """
     return cimgui.GetWindowDockID()
 
 def is_window_docked():
+    """Is current window docked into another window?
+    
+    Returns:
+        bool: true if docked
+        
+    ..wraps:
+        IsWindowDocked()
+    """
     return cimgui.IsWindowDocked()
 
 
